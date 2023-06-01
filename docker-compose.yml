@@ -4,20 +4,55 @@ services:
   janus-gateway:
     image: 'baudneo/janus:testing'
     container_name: janus-gateway
-    networks:
-      - zoneminder
+    network_mode: host
     env_file:
         - ./.env
+    # port mapping not used when network_mode: host
+    # For documentation only
     ports:
       # "HOST:CONTAINER"
-      - "1010:80"
-      - "8088-8097:8088-8097"
-      # Keep the container udp ports unchanged! You can chnage udp host ports if needed.
+      # Apache front end for serving janus.js
+      - "1010:5020"
+
+      # The CONTAINER ports all be changed via .jcfg files
+      # Janus API /janus by default.
+      ## HTTP
+      - "8088:8088"
+      ## HTTPS
+      - "8080:8080"
+      ## WebSockets
+      - "8188:8188"
+      ## WebSockets Secure
+      - "8989:8989"
+      # Admin API /admin by default.
+      ## HTTP
+      - "7088:7088"
+      ## HTTPS
+      - "7889:7889"
+      ## WebSockets
+      - "7888:7888"
+      ## WebSockets Secure
+      - "7989:7989"
+
+      # Misc.
+      - "8090-8097:8090-8097"
+
+      # SIP RTP
+      - "40000-60000:20000-40000"
+
+      # Streaming DEMO - External Video/Audio
+      ## a:5002 v:5004
+      - "5002:5002"
+      - "5004:5004"
+      # Multi Stream DEMO
+      ## a:5102 v:5104 v2:5106
+      - "5102:5102"
+      - "5104:5104"
+      - "5106:5106"
+
+      # Keep the following CONTAINER ports unchanged! You can change HOST ports if needed.
       - "10000-10500:10000-10500/udp"
     volumes:
       - "./janus/config:/janus/config"
       - "./janus/log:/log"
     restart: unless-stopped
-
-networks:
-  zoneminder:
