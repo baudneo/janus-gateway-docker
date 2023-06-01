@@ -96,6 +96,41 @@ RUN set -x \
     && rm -rf /root/.cache \
     && mkdir -p /tmp/deps
 
+
+# libcurl fixed RTSP auth in 8.2.0-DEV, build and install
+RUN set -x \
+    && git clone  https://github.com/curl/curl.git curl-src \
+    && cd curl-src \
+    && autoreconf -fi \
+    && ./configure --with-openssl --prefix=/tmp/curl \
+    && make
+
+# install and link
+RUN set -x \
+    && cd curl-src \
+    && dpkg --remove --force-depends libcurl4 \
+    && make install \
+    && echo "/tmp/curl/lib" > /etc/ld.so.conf.d/libcurl \
+    && ldconfig
+
+RUN ls -alh /tmp/curl/lib/pkgconfig \
+    && cat /etc/ld.so.conf.d/libcurl \
+    && ldconfig \
+    && ldconfig -p | grep curl \
+    && cp -r /tmp/curl/lib/* /usr/lib/x86_64-linux-gnu/
+
+# libwebsockets (uses libcurl.so.4, test if linking works)
+RUN set -x \
+    && cd /tmp \
+    && git clone https://github.com/warmcat/libwebsockets lws \
+    && cd lws \
+    && mkdir -p build \
+    && cd build \
+    # Force linker to use new curl
+    && cmake -Wl,-rpath -Wl,/tmp/curl/lib -DCMAKE_INSTALL_PREFIX:PATH=/tmp/deps -DLWS_WITH_STATIC=OFF -DLWS_WITHOUT_CLIENT=ON -DLWS_WITHOUT_TESTAPPS=ON -DLWS_WITHOUT_TEST_SERVER=ON -DLWS_WITH_HTTP2=OFF .. \
+    && make -j$(nproc) \
+    && make install
+
 # libnice NEW
 RUN set -x \
     && git clone --depth 1 --quiet -b master https://gitlab.freedesktop.org/libnice/libnice.git libnice \
@@ -120,17 +155,6 @@ RUN set -x \
     && cd usrsctp \
     && ./bootstrap \
     && ./configure --prefix=/tmp/deps --disable-programs --disable-debug --disable-inet --disable-inet6 \
-    && make -j$(nproc) \
-    && make install
-
-# libwebsockets
-RUN set -x \
-    && cd /tmp \
-    && git clone https://github.com/warmcat/libwebsockets lws \
-    && cd lws \
-    && mkdir -p build \
-    && cd build \
-    && cmake -DCMAKE_INSTALL_PREFIX:PATH=/tmp/deps -DLWS_WITH_STATIC=OFF -DLWS_WITHOUT_CLIENT=ON -DLWS_WITHOUT_TESTAPPS=ON -DLWS_WITHOUT_TEST_SERVER=ON -DLWS_WITH_HTTP2=OFF .. \
     && make -j$(nproc) \
     && make install
 
@@ -161,9 +185,6 @@ RUN cd /tmp \
     && cd / \
     && rm -rf /tmp/janus
 
-RUN echo "Installed janus into /opt/janus, here is an ls of it" \
-    && ls -alh /opt/janus
-
 ###########################################
 
 ###########################################
@@ -173,7 +194,7 @@ ARG GH_REPO
 
 RUN apt-get -y update && \
 	apt-get install -y \
-	    nano wget curl ca-certificates gettext-base \
+	    nano wget curl ca-certificates gettext-base tree \
 	    libduktape205 \
 		libmicrohttpd12 \
 		libavutil-dev \
@@ -230,6 +251,18 @@ RUN set -x \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+RUN set -x \
+    && dpkg --remove --force-depends libcurl4 \
+    && dpkg --remove --force-depends curl
+ \
+    # Copy libcurl from build image
+COPY --from=builder /tmp/curl /usr
+# Link new libcurl.so.4
+# Output Should be 8.2.0-DEV +
+RUN set -x \
+    && ldconfig \
+    && curl --version
+
 # Install s6 overlay
 COPY --from=s6dl /s6dl /
 # Install rootfs
@@ -284,17 +317,40 @@ EXPOSE 2096
 EXPOSE 8443
 
 # apache2 and CF Argo tunnel
-EXPOSE 80
+EXPOSE 5020
 
 # RTP/RTCP (not all of them)
 EXPOSE 10000-10500/udp
-
-# Janus API / Admin
-EXPOSE 8088-8097
-# 8088-89 HTTP/HTTPS REST API
-# 8090-91 HTTP/HTTPS admin/monitor
-# 8092-93 WS/WSS server
-# 8094-95 WS/WSS admin/monitor
-# 8096-97 Unknown
+# SIP / RTP / NoSIP
+EXPOSE 20000-40000
+# Janus API /janus by default
+## HTTP
+EXPOSE 8088
+## HTTPS
+EXPOSE 8080
+## WebSockets
+EXPOSE 8188
+## WebSockets Secure
+EXPOSE 8989
+# Admin API /admin by default.
+## HTTP
+EXPOSE 7088
+## HTTPS
+EXPOSE 7889
+## WebSockets
+EXPOSE 7888
+## WebSockets Secure
+EXPOSE 7989
+# Misc.
+EXPOSE 8090-8097
+# Streaming DEMO - External Video/Audio
+## a:5002 v:5004
+EXPOSE 5002
+EXPOSE 5004
+# Multi Stream DEMO
+## a:5102 v:5104 v2:5106
+EXPOSE 5102
+EXPOSE 5104
+EXPOSE 5106
 
 CMD ["/init"]
