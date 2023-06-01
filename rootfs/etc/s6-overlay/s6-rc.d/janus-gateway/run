@@ -1,0 +1,15 @@
+#!/command/with-contenv bash
+. "/usr/local/bin/logger"
+
+exec 2>&1
+
+echo "Starting Janus WebRTC Gateway..." | info
+
+s6-setuidgid janus \
+  /opt/janus/bin/janus \
+  --configs-folder=/janus/config \
+  --log-stdout \
+  --pid-file=/janus/janus.pid
+
+echo "AFTER JANUS COMMAND EXECUTED" | info
+exec 1>3 printf "done\n"

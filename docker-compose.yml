@@ -1,0 +1,23 @@
+version: '3.6'
+
+services:
+  janus-gateway:
+    image: 'baudneo/janus:testing'
+    container_name: janus-gateway
+    networks:
+      - zoneminder
+    env_file:
+        - ./.env
+    ports:
+      # "HOST:CONTAINER"
+      - "1010:80"
+      - "8088-8097:8088-8097"
+      # Keep the container udp ports unchanged! You can chnage udp host ports if needed.
+      - "10000-10500:10000-10500/udp"
+    volumes:
+      - "./janus/config:/janus/config"
+      - "./janus/log:/log"
+    restart: unless-stopped
+
+networks:
+  zoneminder:

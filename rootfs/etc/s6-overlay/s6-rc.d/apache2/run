@@ -1,0 +1,10 @@
+#!/command/with-contenv bash
+. "/usr/local/bin/logger"
+# ==============================================================================
+# Apache2
+# Runs Apache2
+# ==============================================================================
+exec 2>&1
+echo "Starting Apache2..." | info
+
+/usr/sbin/apachectl -DFOREGROUND

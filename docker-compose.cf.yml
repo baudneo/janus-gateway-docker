@@ -1,0 +1,45 @@
+version: '3.6'
+
+services:
+  janus-gateway:
+    image: 'baudneo/janus:testing'
+    container_name: janus-gateway
+    networks:
+      - zoneminder
+#    environment:
+#      - TZ=America/Chicago
+    env_file:
+      - ./.env
+    ports:
+      - # HTTP CF ports ARGO tunnel
+        # 80
+        #8080
+        #8880
+        #2052
+        #2082
+        #2086
+        #2095
+        # HTTPS CF ARGO PORTS
+        # 443
+        #2053
+        #2083
+        #2087
+        #2096
+        #8443
+        # UNCACHED SUPPORTED PORTS
+      #
+      - "80:80"  # Apache2 Janus Demo
+      - "2052:2052"  # REST API HTTP
+      - "8443:8443"  # REST API HTTPS
+      - "8880:8880"  # Admin HTTP
+      - "2053:2053"  # Admin HTTPS
+      # Keep the container udp ports unchanged! You can chnage udp host ports if needed.
+      - "10000-10500:10000-10500/udp"
+    volumes:
+      - "./janus/config:/opt/janus/etc/janus"
+      - "./janus/log:/log"
+      - "./janus/js:/janus/js"
+    restart: always
+
+networks:
+  zoneminder:

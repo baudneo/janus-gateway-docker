@@ -1,0 +1,6 @@
+#!/command/with-contenv bash
+. "/usr/local/bin/logger"
+
+echo "Bringing container down NOW!"
+
+/run/s6/basedir/bin/halt
