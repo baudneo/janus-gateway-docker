@@ -152,7 +152,7 @@ RUN cd /tmp \
     && cd janus \
     && git checkout $JANUS_VERSION \
 	&& sh autogen.sh \
-	&& ./configure --enable-post-processing --enable-plugin-lua \
+	&& ./configure --enable-docs --enable-post-processing --enable-plugin-lua \
         --enable-plugin-duktape --enable-plugin-mqtt --enable-json-logger \
         --prefix=/opt/janus \
 	&& make -j$(nproc) \
@@ -236,11 +236,16 @@ COPY --from=s6dl /s6dl /
 COPY --from=rootfs-converter /rootfs /
 
 RUN set -x \
+    # janus logs -> std.out
     && ln -sf /proc/self/fd/1 /opt/janus/access.log \
     && ln -sf /proc/self/fd/1 /opt/janus/error.log \
+    # apache logs -> std.out
+    && ln -sf /proc/self/fd/1 /var/log/apache2/access.log \
+    && ln -sf /proc/self/fd/1 /var/log/apache2/error.log \
+    # disable default site
     && a2dissite 000-default \
-    && a2ensite janus \
-    && a2enconf janus
+    # enable janus site
+    && a2ensite janus
 
 ENV \
     S6_CMD_WAIT_FOR_SERVICES_MAXTIME=0 \
